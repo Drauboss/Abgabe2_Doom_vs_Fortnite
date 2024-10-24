@@ -11,8 +11,14 @@ public class PlayerController : MonoBehaviour
     [Header("Movement Params")]
     public float walkSpeed = 6f;
     public float sprintSpeed = 12f;
-    public float jumpPower = 7f;
+    public float jumpPower = 5f;
+    private int jumpCount = 0;
+    private int maxJumps = 2;
     public float gravity = 9.81f;
+    private bool isDashing = false;
+    public float dashSpeed = 20f;
+    public float dashDuration = 0.2f;
+    private float dashTimer = 0f;
 
     [Header("Camera Params")]
     public Camera fpsCamera;
@@ -28,6 +34,7 @@ public class PlayerController : MonoBehaviour
     private Vector2 moveInput;
     private Vector2 lookInput;
     private float rotation;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -53,6 +60,16 @@ public class PlayerController : MonoBehaviour
         float movementVelocity = moveVelocity.y;
         moveVelocity = (forward * currentSpeedX) + (right * currentSpeedY);
 
+        // Handle dashing
+        if (isDashing)
+        {
+            moveVelocity += forward * dashSpeed;
+            dashTimer -= Time.deltaTime;
+            if (dashTimer <= 0)
+            {
+                isDashing = false;
+            }
+        }
 
         // Jump
 
@@ -60,6 +77,11 @@ public class PlayerController : MonoBehaviour
         if (!characterController.isGrounded)
         {
             moveVelocity.y -= gravity * Time.deltaTime;
+        }
+        else
+        {
+            Debug.Log("Jump Count Reset");
+            jumpCount = 0;
         }
 
 
@@ -100,13 +122,21 @@ public class PlayerController : MonoBehaviour
 
     public void HandleJumpInput(InputAction.CallbackContext context)
     {
-        if (context.performed && canMove && characterController.isGrounded)
+        if (context.performed && canMove && (characterController.isGrounded || jumpCount < maxJumps - 1))
         {
-            Debug.Log("Jump");
             moveVelocity.y = jumpPower;
+            jumpCount++;
         }
     }
 
+    public void HandleDashInput(InputAction.CallbackContext context)
+    {
+        if (context.performed && canMove && !isDashing)
+        {
+            isDashing = true;
+            dashTimer = dashDuration;
+        }
+    }
     // public void HandleWeaponSwitch(InputAction.CallbackContext context)
     // {
     //     if (context.started)
