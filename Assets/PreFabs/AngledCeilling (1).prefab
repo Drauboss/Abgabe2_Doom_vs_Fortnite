@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 5874629565507781468}
   - component: {fileID: 9090748012343227800}
   - component: {fileID: 6443986920467039682}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: AngledCeilling (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
