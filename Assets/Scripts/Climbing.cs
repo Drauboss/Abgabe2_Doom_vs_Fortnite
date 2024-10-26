@@ -5,31 +5,30 @@ using UnityEngine.InputSystem;
 
 public class Climbing : MonoBehaviour
 {
+    [Header("Climbing Settings")]
+    [SerializeField] private float climbSpeed = 5.0f;
+    [SerializeField] private float maxWallLookAngle = 45.0f;
+    [SerializeField] private LayerMask whatIsWall;
+    [SerializeField] private float sphereCastRadius = 0.5f;
+    [SerializeField] private float detectionHeight = 2.0f;
+    [SerializeField] private float maxClimbTime = 5.0f;
 
     [Header("References")]
-    public Transform orientation;
-    public LayerMask whatIsWall;
-    public PlayerController playerController;
+    [SerializeField] private PlayerController playerController;
+    [SerializeField] private PlayerInputHandler inputHandler;
+    [SerializeField] private Transform orientation;
 
-    [Header("Climbing")]
-    public float climbSpeed;
-    public float maxClimbTime;
+    private bool climbing = false;
+    private bool wallFront = false;
+    private float wallLookAngle = 0.0f;
+    private RaycastHit frontWallhit;
     private float climbTimer;
 
-    private bool climbing;
-
-    [Header("Detection")]
-    public float detectionHeight;
-    public float sphereCastRadius;
-    public float maxWallLookAngle;
-    private float wallLookAngle;
-
-    private RaycastHit frontWallhit;
-    private bool wallFront;
-
-    private bool isClimbKeyPressed;
-
-
+    private void Awake()
+    {
+        inputHandler = GetComponent<PlayerInputHandler>();
+        playerController = GetComponent<PlayerController>();
+    }
     // Update is called once per frame
     void Update()
     {
@@ -45,12 +44,11 @@ public class Climbing : MonoBehaviour
     private void StateMachine()
     {
         // State 1 - Climbing
-        if (wallFront && isClimbKeyPressed)
+        if (wallFront && inputHandler.IsClimbingPressed)
         {
             if (!climbing && climbTimer > 0)
             {
                 StartClimbing();
-
             }
 
             //timer
@@ -115,7 +113,7 @@ public class Climbing : MonoBehaviour
         if (wallLookAngle < maxWallLookAngle)
         {
             // Check if the up key is pressed using moveInput from playerController
-            if (playerController.moveInput.y > 0)
+            if (inputHandler.MoveInput.y > 0)
             {
                 // Apply the climbing speed to the vertical component
                 playerController.moveVelocity = new Vector3(
@@ -126,14 +124,4 @@ public class Climbing : MonoBehaviour
             }
         }
     }
-
-    // region Inputs
-
-    public void HandleClimbInput(InputAction.CallbackContext context)
-    {
-        isClimbKeyPressed = context.ReadValueAsButton(); // Step 2: Update the input state
-        Debug.Log("Climb Input: " + isClimbKeyPressed);
-
-    }
-    // endregion
 }

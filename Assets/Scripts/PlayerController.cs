@@ -1,43 +1,27 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using DG.Tweening;
 
 public class PlayerController : MonoBehaviour
 {
-    public bool canMove = true;
-    public bool isSprinting = false;
+    [Header("Movement Settings")]
+    [SerializeField] private bool canMove = true;
+    [SerializeField] private float walkSpeed = 6f;
+    [SerializeField] private float sprintSpeed = 12f;
+    [SerializeField] private float jumpPower = 5f;
+    [SerializeField] private int maxJumps = 2;
+    [SerializeField] private float gravity = 9.81f;
+    [SerializeField] private float dashSpeed = 20f;
+    [SerializeField] private float dashDuration = 0.2f;
 
-    [Header("Movement Params")]
-    public float walkSpeed = 6f;
-    public float sprintSpeed = 12f;
-    public float jumpPower = 5f;
+    [Header("References")]
+    [SerializeField] public CharacterController characterController;
+    [SerializeField] private CameraController cameraController;
+
     private int jumpCount = 0;
-    private int maxJumps = 2;
-    public float gravity = 9.81f;
     private bool isDashing = false;
-    public float dashSpeed = 20f;
-    public float dashDuration = 0.2f;
     private float dashTimer = 0f;
-
     public bool isClimbing = false;
-
-    [Header("Camera Params")]
-    public Camera fpsCamera;
-    public float lookSpeed = 0.5f;
-    public float lookLimit = 45.0f;
-    public float dashFov;
-
-    // [Header("Weapons")]
-    // public GameObject GravityGun;
-    // public GameObject ObstacleGun;
-
-    public CharacterController characterController;
     public Vector3 moveVelocity;
-    public Vector2 moveInput;
-    private Vector2 lookInput;
-    private float rotation;
+
 
     // Start is called before the first frame update
     void Start()
@@ -52,110 +36,96 @@ public class PlayerController : MonoBehaviour
 
     }
 
-    // Update is called once per frame
-    void Update()
+    private PlayerInputHandler inputHandler;
+
+    private void Awake()
     {
+        inputHandler = GetComponent<PlayerInputHandler>();
+        cameraController = GetComponent<CameraController>();
+    }
+
+    private void Update()
+    {
+        HandleMovement();
+        // Handle camera rotation
+        cameraController.HandleCameraRotation(inputHandler.LookInput);
+    }
+
+    private void HandleMovement()
+    {
+        // Calculate movement direction vectors
         Vector3 forward = transform.TransformDirection(Vector3.forward);
         Vector3 right = transform.TransformDirection(Vector3.right);
 
-        float currentSpeedX = canMove ? (isSprinting ? sprintSpeed : walkSpeed) * moveInput.y : 0;
-        float currentSpeedY = canMove ? (isSprinting ? sprintSpeed : walkSpeed) * moveInput.x : 0;
+        // Determine current speed based on input and movement state
+        float currentSpeedX = canMove ? (inputHandler.IsSprintingPressed ? sprintSpeed : walkSpeed) * inputHandler.MoveInput.y : 0;
+        float currentSpeedY = canMove ? (inputHandler.IsSprintingPressed ? sprintSpeed : walkSpeed) * inputHandler.MoveInput.x : 0;
 
-        float movementVelocity = moveVelocity.y;
-        moveVelocity = (forward * currentSpeedX) + (right * currentSpeedY);
+        // Preserve the current vertical velocity
+        float verticalVelocity = moveVelocity.y;
+
+        // Calculate horizontal movement velocity only if grounded or climbing
+        if (characterController.isGrounded || isClimbing)
+        {
+            moveVelocity = (forward * currentSpeedX) + (right * currentSpeedY);
+        }
 
         // Handle dashing
         if (isDashing)
         {
-            DoFov(dashFov);
+            // Change FOV for dashing effect
+            cameraController.DoFov();
+
+            // Add dash speed to forward movement
             moveVelocity += forward * dashSpeed;
+
+            // Decrease dash timer
             dashTimer -= Time.deltaTime;
+
+            // Stop dashing when timer runs out
             if (dashTimer <= 0)
             {
                 isDashing = false;
-                DoFov(60);
+                cameraController.ResetFov();
             }
         }
 
-        // Jump
-
-        moveVelocity.y = movementVelocity;
-        if (!characterController.isGrounded && !isClimbing)
+        // Apply gravity if not grounded
+        if (!characterController.isGrounded)
         {
-            moveVelocity.y -= gravity * Time.deltaTime;
+            moveVelocity.y = verticalVelocity - gravity * Time.deltaTime;
         }
-        else
+        else if (jumpCount > 0)
         {
+            moveVelocity.y = 0;
             jumpCount = 0;
         }
 
 
-
-        characterController.Move(moveVelocity * Time.deltaTime);
-
-        // Camera
-        if (canMove)
-        {
-            rotation += -lookInput.y * lookSpeed;
-            rotation = Mathf.Clamp(rotation, -lookLimit, lookLimit);
-
-            fpsCamera.transform.localRotation = Quaternion.Euler(rotation, 0, 0);
-            transform.rotation *= Quaternion.Euler(0, lookInput.x * lookSpeed, 0);
-        }
-    }
-
-    public void DoFov(float fov)
-    {
-        fpsCamera.DOFieldOfView(fov, 0.25f);
-    }
-
-    public void HandleMoveInput(InputAction.CallbackContext context)
-    {
-        moveInput = context.ReadValue<Vector2>();
-    }
-
-    public void HandleSprintInput(InputAction.CallbackContext context)
-    {
-        if (context.performed)
-        {
-            isSprinting = true;
-        }
-        else if (context.canceled)
-        {
-            isSprinting = false;
-        }
-    }
-
-    public void HandleLookInput(InputAction.CallbackContext context)
-    {
-        lookInput = context.ReadValue<Vector2>();
-    }
-
-    public void HandleJumpInput(InputAction.CallbackContext context)
-    {
-        if (context.performed && canMove && (characterController.isGrounded || jumpCount < maxJumps - 1))
+        // Handle jumping
+        if (inputHandler.IsJumpingPressed && (characterController.isGrounded || jumpCount < maxJumps))
         {
             moveVelocity.y = jumpPower;
             jumpCount++;
         }
-    }
 
-    public void HandleDashInput(InputAction.CallbackContext context)
-    {
-        if (context.performed && canMove && !isDashing)
+        // Handle dashing input
+        if (inputHandler.IsDashingPressed && !isDashing)
         {
             isDashing = true;
             dashTimer = dashDuration;
         }
+
+        // Move the character controller
+        characterController.Move(moveVelocity * Time.deltaTime);
+
+        ResetSingleActionInputs();
     }
-    // public void HandleWeaponSwitch(InputAction.CallbackContext context)
-    // {
-    //     if (context.started)
-    //     {
-    //         GravityGun.SetActive(!GravityGun.activeSelf);
-    //         ObstacleGun.SetActive(!ObstacleGun.activeSelf);
-    //     }
-    // }
 
-
+    public void ResetSingleActionInputs()
+    {
+        inputHandler.IsJumpingPressed = false;
+        inputHandler.IsDashingPressed = false;
+        // Add any other single-use inputs here
+    }
 }
