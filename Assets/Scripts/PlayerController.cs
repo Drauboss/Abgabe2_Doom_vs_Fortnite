@@ -21,20 +21,9 @@ public class PlayerController : MonoBehaviour
     private float dashTimer = 0f;
     public bool isClimbing = false;
     public Vector3 moveVelocity;
-
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        characterController = GetComponent<CharacterController>();
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-
-        // // Weapons
-        // GravityGun.SetActive(true);
-        // ObstacleGun.SetActive(false);
-
-    }
+    public bool freeze = false;
+    public bool activeGrapple;
+    private bool enableMovementOnNextTouch;
 
     private PlayerInputHandler inputHandler;
 
@@ -44,9 +33,24 @@ public class PlayerController : MonoBehaviour
         cameraController = GetComponent<CameraController>();
     }
 
+    private void Start()
+    {
+        characterController = GetComponent<CharacterController>();
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
+
     private void Update()
     {
-        HandleMovement();
+        if (!activeGrapple)
+        {
+            HandleMovement();
+        }
+        else
+        {
+            HandleGrappleMovement();
+        }
+
         // Handle camera rotation
         cameraController.HandleCameraRotation(inputHandler.LookInput);
     }
@@ -58,17 +62,13 @@ public class PlayerController : MonoBehaviour
         Vector3 right = transform.TransformDirection(Vector3.right);
 
         // Determine current speed based on input and movement state
-        float currentSpeedX = canMove ? (inputHandler.IsSprintingPressed ? sprintSpeed : walkSpeed) * inputHandler.MoveInput.y : 0;
-        float currentSpeedY = canMove ? (inputHandler.IsSprintingPressed ? sprintSpeed : walkSpeed) * inputHandler.MoveInput.x : 0;
+        float forwardSpeed = canMove ? (inputHandler.IsSprintingPressed ? sprintSpeed : walkSpeed) * inputHandler.MoveInput.y : 0;
+        float rightSpeed = canMove ? (inputHandler.IsSprintingPressed ? sprintSpeed : walkSpeed) * inputHandler.MoveInput.x : 0;
 
         // Preserve the current vertical velocity
         float verticalVelocity = moveVelocity.y;
 
-        // Calculate horizontal movement velocity only if grounded or climbing
-        if (characterController.isGrounded || isClimbing)
-        {
-            moveVelocity = (forward * currentSpeedX) + (right * currentSpeedY);
-        }
+        moveVelocity = (forward * forwardSpeed) + (right * rightSpeed);
 
         // Handle dashing
         if (isDashing)
@@ -90,8 +90,8 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // Apply gravity if not grounded
-        if (!characterController.isGrounded)
+        // Apply gravity if not grounded and not climbing
+        if (!characterController.isGrounded && !isClimbing)
         {
             moveVelocity.y = verticalVelocity - gravity * Time.deltaTime;
         }
@@ -101,9 +101,8 @@ public class PlayerController : MonoBehaviour
             jumpCount = 0;
         }
 
-
         // Handle jumping
-        if (inputHandler.IsJumpingPressed && (characterController.isGrounded || jumpCount < maxJumps))
+        if (inputHandler.IsJumpingPressed && (isClimbing || (jumpCount < maxJumps)))
         {
             moveVelocity.y = jumpPower;
             jumpCount++;
@@ -117,9 +116,27 @@ public class PlayerController : MonoBehaviour
         }
 
         // Move the character controller
+        if (freeze)
+        {
+            moveVelocity = Vector3.zero;
+        }
+
         characterController.Move(moveVelocity * Time.deltaTime);
 
         ResetSingleActionInputs();
+    }
+
+    private void HandleGrappleMovement()
+    {
+        // Move the character controller towards the target position
+        characterController.Move(velocityToSet * Time.deltaTime);
+
+        // Check if the character has reached the target position
+        if (Vector3.Distance(transform.position, grappleTargetPosition) < 1f)
+        {
+            activeGrapple = false;
+            cameraController.ResetFov();
+        }
     }
 
     public void ResetSingleActionInputs()
@@ -127,5 +144,30 @@ public class PlayerController : MonoBehaviour
         inputHandler.IsJumpingPressed = false;
         inputHandler.IsDashingPressed = false;
         // Add any other single-use inputs here
+    }
+
+    public void JumpToPosition(Vector3 targetPosition, float trajectoryHeight)
+    {
+        activeGrapple = true;
+        grappleTargetPosition = targetPosition;
+
+        velocityToSet = CalculateJumpVelocity(transform.position, targetPosition, trajectoryHeight);
+        cameraController.DoFov();
+    }
+
+    private Vector3 velocityToSet;
+    private Vector3 grappleTargetPosition;
+
+    public Vector3 CalculateJumpVelocity(Vector3 startPoint, Vector3 endPoint, float trajectoryHeight)
+    {
+        float gravity = Physics.gravity.y;
+        float displacementY = endPoint.y - startPoint.y;
+        Vector3 displacementXZ = new Vector3(endPoint.x - startPoint.x, 0f, endPoint.z - startPoint.z);
+
+        Vector3 velocityY = Vector3.up * Mathf.Sqrt(-2 * gravity * trajectoryHeight);
+        Vector3 velocityXZ = displacementXZ / (Mathf.Sqrt(-2 * trajectoryHeight / gravity)
+            + Mathf.Sqrt(2 * (displacementY - trajectoryHeight) / gravity));
+
+        return velocityXZ + velocityY;
     }
 }
