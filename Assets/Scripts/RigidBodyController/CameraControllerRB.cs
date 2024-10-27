@@ -7,9 +7,12 @@ public class CameraControllerRB : MonoBehaviour
     public float sensY;
 
     public Transform orientation;
+    public Camera cam;
 
     float xRotation;
     float yRotation;
+    public float dashFov;
+    public float defaultFov;
 
     private void Start()
     {
@@ -34,12 +37,12 @@ public class CameraControllerRB : MonoBehaviour
     }
 
 
-    // public void DoFov()
-    // {
-    //     fpsCamera.DOFieldOfView(dashFov, 0.25f);
-    // }
-    // public void ResetFov()
-    // {
-    //     fpsCamera.DOFieldOfView(defaultFov, 0.25f);
-    // }
+    public void DoFov()
+    {
+        cam.DOFieldOfView(dashFov, 0.25f);
+    }
+    public void ResetFov()
+    {
+        cam.DOFieldOfView(defaultFov, 0.25f);
+    }
 }

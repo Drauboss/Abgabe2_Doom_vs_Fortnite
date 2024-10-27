@@ -3,36 +3,39 @@ using UnityEngine;
 public class PlayerControllerRB : MonoBehaviour
 {
 
-    [Header("Movement")]
-    public float moveSpeed;
-
-    public float groundDrag;
-
-    public float jumpForce;
-    public float jumpCooldown;
-    public float airMultiplier;
-    bool readyToJump;
-
+    [Header("Parameters")]
     public float walkSpeed;
     public float sprintSpeed;
-
-
-    [Header("Ground Check")]
+    public float groundDrag;
+    public float jumpForce;
+    public int maxJumps;
+    public float airMultiplier;
     public float playerHeight;
     public LayerMask whatIsGround;
-    public bool grounded;
-
     public Transform orientation;
+    public float dashSpeed;
+    public float dashDuration;
+    public float jumpCooldown;
 
+    [Header("CameraEffects")]
+    public CameraControllerRB cam;
+    public float dashFov;
+
+    [Header("Debug Values")]
+    public float moveSpeed;
+    public bool isSprinting;
+    public int jumpCount;
+    bool readyToJump;
+    public bool grounded;
     public float rightDirection;
     public float forwardDirection;
-
+    public bool dashing;
+    public bool readyToDash;
     public Vector3 moveDirection;
-
     Rigidbody rb;
 
-    private PlayerInputHandlerRB inputHandler;
 
+    private PlayerInputHandlerRB inputHandler;
 
     private void Start()
     {
@@ -41,6 +44,8 @@ public class PlayerControllerRB : MonoBehaviour
         rb.freezeRotation = true;
 
         readyToJump = true;
+        readyToDash = true;
+        jumpCount = 0;
     }
 
     private void Update()
@@ -49,13 +54,22 @@ public class PlayerControllerRB : MonoBehaviour
         grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
 
         MyInput();
+
         SpeedControl();
 
         // handle drag
         if (grounded)
+        {
+            jumpCount = 0;
             rb.drag = groundDrag;
+        }
         else
+        {
             rb.drag = 0;
+        }
+
+
+        ResetSingleActionInputs();
     }
 
     private void FixedUpdate()
@@ -69,13 +83,46 @@ public class PlayerControllerRB : MonoBehaviour
         rightDirection = inputHandler.MoveInput.x;
 
         // when to jump
-        if (inputHandler.IsJumpingPressed && readyToJump && grounded)
+        if (inputHandler.IsJumpingPressed && readyToJump && (grounded || jumpCount < maxJumps - 1))
         {
             readyToJump = false;
 
             Jump();
 
             Invoke(nameof(ResetJump), jumpCooldown);
+        }
+
+        if (inputHandler.IsDashingPressed && !isSprinting && readyToDash)
+        {
+            dashing = true;
+            readyToDash = false;
+            Dash();
+            Invoke(nameof(ResetDash), dashDuration);
+        }
+
+        // Check if sprinting
+        if (inputHandler.IsSprintingPressed && grounded && !inputHandler.IsDashingPressed)
+        {
+            isSprinting = true;
+        }
+        else if (grounded)
+        {
+            isSprinting = false;
+        }
+
+        // Set move speed based on sprinting flag
+        SetMoveSpeed();
+    }
+
+    private void SetMoveSpeed()
+    {
+        if (isSprinting)
+        {
+            moveSpeed = sprintSpeed;
+        }
+        else
+        {
+            moveSpeed = walkSpeed;
         }
     }
 
@@ -89,7 +136,8 @@ public class PlayerControllerRB : MonoBehaviour
         {
             // rb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
             Vector3 velocity = moveDirection * moveSpeed;
-            rb.velocity = new Vector3(velocity.x, rb.velocity.y, velocity.z);
+            // rb.velocity = new Vector3(velocity.x, rb.velocity.y, velocity.z);
+            rb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
 
         }
 
@@ -117,10 +165,31 @@ public class PlayerControllerRB : MonoBehaviour
         rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
 
         rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+
+        jumpCount++;
     }
     private void ResetJump()
     {
         readyToJump = true;
+    }
+
+    private void Dash()
+    {
+        cam.DoFov();
+        rb.AddForce(orientation.forward * dashSpeed, ForceMode.Impulse);
+    }
+
+    private void ResetDash()
+    {
+        cam.ResetFov();
+        readyToDash = true;
+    }
+
+    public void ResetSingleActionInputs()
+    {
+        inputHandler.IsJumpingPressed = false;
+        inputHandler.IsDashingPressed = false;
+        // Add any other single-use inputs here
     }
 
 }
