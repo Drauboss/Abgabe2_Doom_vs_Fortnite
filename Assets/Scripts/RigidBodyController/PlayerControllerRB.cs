@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class PlayerControllerRB : MonoBehaviour
@@ -14,12 +15,7 @@ public class PlayerControllerRB : MonoBehaviour
     public LayerMask whatIsGround;
     public Transform orientation;
     public float dashSpeed;
-    public float dashDuration;
     public float jumpCooldown;
-
-    [Header("CameraEffects")]
-    public CameraControllerRB cam;
-    public float dashFov;
 
     [Header("Debug Values")]
     public float moveSpeed;
@@ -54,8 +50,8 @@ public class PlayerControllerRB : MonoBehaviour
         grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
 
         MyInput();
-
         SpeedControl();
+        StateHandler();
 
         // handle drag
         if (grounded)
@@ -92,16 +88,8 @@ public class PlayerControllerRB : MonoBehaviour
             Invoke(nameof(ResetJump), jumpCooldown);
         }
 
-        if (inputHandler.IsDashingPressed && !isSprinting && readyToDash)
-        {
-            dashing = true;
-            readyToDash = false;
-            Dash();
-            Invoke(nameof(ResetDash), dashDuration);
-        }
-
         // Check if sprinting
-        if (inputHandler.IsSprintingPressed && grounded && !inputHandler.IsDashingPressed)
+        if (inputHandler.IsSprintingPressed && grounded)
         {
             isSprinting = true;
         }
@@ -118,11 +106,11 @@ public class PlayerControllerRB : MonoBehaviour
     {
         if (isSprinting)
         {
-            moveSpeed = sprintSpeed;
+            desiredMoveSpeed = sprintSpeed;
         }
         else
         {
-            moveSpeed = walkSpeed;
+            desiredMoveSpeed = walkSpeed;
         }
     }
 
@@ -173,23 +161,108 @@ public class PlayerControllerRB : MonoBehaviour
         readyToJump = true;
     }
 
-    private void Dash()
-    {
-        cam.DoFov();
-        rb.AddForce(orientation.forward * dashSpeed, ForceMode.Impulse);
-    }
-
-    private void ResetDash()
-    {
-        cam.ResetFov();
-        readyToDash = true;
-    }
-
     public void ResetSingleActionInputs()
     {
         inputHandler.IsJumpingPressed = false;
         inputHandler.IsDashingPressed = false;
         // Add any other single-use inputs here
+    }
+
+
+    //new code
+
+    public MovementState state;
+    public enum MovementState
+    {
+        walking,
+        sprinting,
+        dashing,
+        air
+    }
+
+    public float dashSpeedChangeFactor;
+    private float desiredMoveSpeed;
+    private float lastDesiredMoveSpeed;
+    private MovementState lastState;
+    private bool keepMomentum;
+    private float speedChangeFactor;
+    private IEnumerator SmoothlyLerpMoveSpeed()
+    {
+        // smoothly lerp movementSpeed to desired value
+        float time = 0;
+        float difference = Mathf.Abs(desiredMoveSpeed - moveSpeed);
+        float startValue = moveSpeed;
+
+        float boostFactor = speedChangeFactor;
+
+        while (time < difference)
+        {
+            moveSpeed = Mathf.Lerp(startValue, desiredMoveSpeed, time / difference);
+
+            time += Time.deltaTime * boostFactor;
+
+            yield return null;
+        }
+
+        moveSpeed = desiredMoveSpeed;
+        speedChangeFactor = 1f;
+        keepMomentum = false;
+    }
+
+    private void StateHandler()
+    {
+        // Mode - Dashing
+        if (dashing)
+        {
+            state = MovementState.dashing;
+            desiredMoveSpeed = dashSpeed;
+            speedChangeFactor = dashSpeedChangeFactor;
+        }
+
+        // Mode - Sprinting
+        else if (grounded && inputHandler.IsSprintingPressed)
+        {
+            state = MovementState.sprinting;
+            desiredMoveSpeed = sprintSpeed;
+        }
+
+        // Mode - Walking
+        else if (grounded)
+        {
+            state = MovementState.walking;
+            desiredMoveSpeed = walkSpeed;
+        }
+
+        // Mode - Air
+        else
+        {
+            state = MovementState.air;
+
+            if (desiredMoveSpeed < sprintSpeed)
+                desiredMoveSpeed = walkSpeed;
+            else
+                desiredMoveSpeed = sprintSpeed;
+        }
+
+        bool desiredMoveSpeedHasChanged = desiredMoveSpeed != lastDesiredMoveSpeed;
+        if (lastState == MovementState.dashing) keepMomentum = true;
+
+        if (desiredMoveSpeedHasChanged)
+        {
+            if (keepMomentum)
+            {
+                StopAllCoroutines();
+                StartCoroutine(SmoothlyLerpMoveSpeed());
+            }
+            else
+            {
+                StopAllCoroutines();
+                moveSpeed = desiredMoveSpeed;
+            }
+        }
+
+        lastDesiredMoveSpeed = desiredMoveSpeed;
+        lastState = state;
     }
 
 }
