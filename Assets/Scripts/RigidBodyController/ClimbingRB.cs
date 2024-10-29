@@ -10,24 +10,25 @@ public class ClimbingRB : MonoBehaviour
     [SerializeField] private float maxWallLookAngle = 45.0f;
     [SerializeField] private LayerMask whatIsWall;
     [SerializeField] private float sphereCastRadius = 0.5f;
-    [SerializeField] private float detectionHeight = 2.0f;
+    [SerializeField] private float detectionLength = 2.0f;
     [SerializeField] private float maxClimbTime = 5.0f;
 
     [Header("References")]
-    [SerializeField] private PlayerController playerController;
-    [SerializeField] private PlayerInputHandler inputHandler;
+    [SerializeField] private PlayerControllerRB playerController;
+    [SerializeField] private PlayerInputHandlerRB inputHandler;
     [SerializeField] private Transform orientation;
+    public Rigidbody rb;
 
-    private bool climbing = false;
-    private bool wallFront = false;
+    public bool climbing = false;
+    public bool wallFront = false;
     private float wallLookAngle = 0.0f;
     private RaycastHit frontWallhit;
     private float climbTimer;
 
     private void Awake()
     {
-        inputHandler = GetComponent<PlayerInputHandler>();
-        playerController = GetComponent<PlayerController>();
+        inputHandler = GetComponent<PlayerInputHandlerRB>();
+        playerController = GetComponent<PlayerControllerRB>();
     }
     // Update is called once per frame
     void Update()
@@ -72,42 +73,63 @@ public class ClimbingRB : MonoBehaviour
     }
     private void WallCheck()
     {
-        wallFront = Physics.SphereCast(transform.position, sphereCastRadius, orientation.forward, out frontWallhit, detectionHeight, whatIsWall);
+        Vector3 sphereCastOrigin = transform.position + orientation.forward * sphereCastRadius;
+        wallFront = Physics.SphereCast(sphereCastOrigin, sphereCastRadius, orientation.forward, out frontWallhit, detectionLength, whatIsWall);
+
+        // Debugging: Draw the SphereCast path
+        Debug.DrawLine(sphereCastOrigin, sphereCastOrigin + orientation.forward * detectionLength, Color.red);
+
+        // Debugging: Draw a ray from the hit point
+        if (wallFront)
+        {
+            Debug.DrawRay(frontWallhit.point, frontWallhit.normal, Color.green);
+        }
+
+        // Debugging: Draw spheres at the start and end points of the SphereCast
+        //DrawDebugSpheres(sphereCastOrigin, sphereCastOrigin + orientation.forward * detectionLength);
+
         wallLookAngle = Vector3.Angle(orientation.forward, -frontWallhit.normal);
 
-        if (playerController.characterController.isGrounded)
+        if (playerController.grounded)
         {
             climbTimer = maxClimbTime;
         }
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (!Application.isPlaying) return;
+
+        Vector3 sphereCastOrigin = transform.position + orientation.forward * sphereCastRadius;
+        Vector3 sphereCastEnd = sphereCastOrigin + orientation.forward * detectionLength;
+
+        // Draw spheres at the start and end points of the SphereCast
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(sphereCastOrigin, sphereCastRadius);
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(sphereCastEnd, sphereCastRadius);
     }
 
     private void StartClimbing()
     {
         climbing = true;
         playerController.isClimbing = true;
-        Debug.Log("Start Climbing");
     }
 
     private void StopClimbing()
     {
         climbing = false;
         playerController.isClimbing = false;
-        Debug.Log("Stop Climbing");
     }
 
     private void ClimbMovement()
     {
-        Debug.Log("Climbing");
 
         // Reduce horizontal movement speed by a factor (e.g., 0.8 for reduced speed)
         float speedReductionFactor = 0.8f;
 
         // Apply the speed reduction factor to the x and z components of moveVelocity
-        playerController.moveVelocity = new Vector3(
-            playerController.moveVelocity.x * speedReductionFactor,
-            0, // Set vertical velocity to zero by default
-            playerController.moveVelocity.z * speedReductionFactor
-        );
+        rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
 
         // Check if the player is looking towards the wall
         if (wallLookAngle < maxWallLookAngle)
@@ -116,11 +138,12 @@ public class ClimbingRB : MonoBehaviour
             if (inputHandler.MoveInput.y > 0)
             {
                 // Apply the climbing speed to the vertical component
-                playerController.moveVelocity = new Vector3(
-                    playerController.moveVelocity.x,
-                    climbSpeed,
-                    playerController.moveVelocity.z
-                );
+                rb.velocity = new Vector3(rb.velocity.x, climbSpeed, rb.velocity.z);
+            }
+            else if (inputHandler.MoveInput.y < 0)
+            {
+                // Apply the climbing speed to the vertical component
+                rb.velocity = new Vector3(rb.velocity.x, -climbSpeed, rb.velocity.z);
             }
         }
     }

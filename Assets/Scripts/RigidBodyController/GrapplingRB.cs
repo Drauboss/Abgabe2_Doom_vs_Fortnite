@@ -5,7 +5,7 @@ using UnityEngine;
 public class GrapplingRB : MonoBehaviour
 {
     [Header("References")]
-    private PlayerController playerController;
+    private PlayerControllerRB playerController;
     public Transform cam;
     public Transform gunTip;
     public LayerMask whatIsGrappleable;
@@ -22,22 +22,24 @@ public class GrapplingRB : MonoBehaviour
     public float grapplingCd;
     private float grapplingCdTimer;
 
-    [Header("Input")]
-    public KeyCode grappleKey = KeyCode.Mouse1;
+    private PlayerInputHandlerRB inputHandler;
 
     private bool grappling;
 
     private void Start()
     {
-        playerController = GetComponent<PlayerController>();
+        playerController = GetComponent<PlayerControllerRB>();
+        inputHandler = GetComponent<PlayerInputHandlerRB>();
     }
 
     private void Update()
     {
-        if (Input.GetKeyDown(grappleKey)) StartGrapple();
+        if (inputHandler.IsGrapplingPressed) StartGrapple();
 
         if (grapplingCdTimer > 0)
             grapplingCdTimer -= Time.deltaTime;
+
+        inputHandler.IsGrapplingPressed = false;
     }
 
     private void LateUpdate()
@@ -52,7 +54,7 @@ public class GrapplingRB : MonoBehaviour
 
         grappling = true;
 
-        playerController.freeze = true;
+        // playerController.freeze = true;
 
         RaycastHit hit;
         if (Physics.Raycast(cam.position, cam.forward, out hit, maxGrappleDistance, whatIsGrappleable))
@@ -80,7 +82,7 @@ public class GrapplingRB : MonoBehaviour
 
     private void ExecuteGrapple()
     {
-        playerController.freeze = false;
+        // playerController.freeze = false;
 
         Vector3 lowestPoint = new Vector3(transform.position.x, transform.position.y - 1f, transform.position.z);
 
@@ -96,7 +98,7 @@ public class GrapplingRB : MonoBehaviour
 
     public void StopGrapple()
     {
-        playerController.freeze = false;
+        // playerController.freeze = false;
 
         grappling = false;
         playerController.activeGrapple = false;

@@ -10,6 +10,7 @@ public class PlayerInputHandlerRB : MonoBehaviour
     public bool IsJumpingPressed { get; set; }
     public bool IsDashingPressed { get; set; }
     public bool IsClimbingPressed { get; set; }
+    public bool IsGrapplingPressed { get; set; }
 
     public void HandleMoveInput(InputAction.CallbackContext context)
     {
@@ -66,6 +67,17 @@ public class PlayerInputHandlerRB : MonoBehaviour
         else if (context.canceled)
         {
             IsClimbingPressed = false;
+        }
+    }
+    public void HandleGrapplingInput(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            IsGrapplingPressed = true;
+        }
+        else if (context.canceled)
+        {
+            IsGrapplingPressed = false;
         }
     }
 }
