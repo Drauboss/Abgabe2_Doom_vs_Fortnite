@@ -52,6 +52,8 @@ public class GrapplingRB : MonoBehaviour
     {
         if (grapplingCdTimer > 0) return;
 
+        GetComponent<SwingingRB>().StopSwing();
+
         grappling = true;
 
         // playerController.freeze = true;
