@@ -74,18 +74,6 @@ public class PlayerControllerRB : MonoBehaviour
         readyToDash = true;
         jumpCount = 0;
 
-        inputHandler.OnShoot += HandleShoot;
-    }
-
-    private void OnDestroy()
-    {
-        inputHandler.OnShoot -= HandleShoot;
-    }
-
-    private void HandleShoot()
-    {
-        Debug.Log("Player shot!");
-        // Add shooting logic here
     }
 
     /// <summary>
