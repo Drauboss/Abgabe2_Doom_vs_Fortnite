@@ -18,6 +18,8 @@ public class PlayerControllerRB : MonoBehaviour
     public float dashSpeed;
     public float jumpCooldown;
     public float dashSpeedChangeFactor;
+    public LayerMask whatIsTrampoline;
+    public float trampolineJumpPower;
 
     [Header("Debug Values")]
     public float moveSpeed;
@@ -71,6 +73,19 @@ public class PlayerControllerRB : MonoBehaviour
         readyToJump = true;
         readyToDash = true;
         jumpCount = 0;
+
+        inputHandler.OnShoot += HandleShoot;
+    }
+
+    private void OnDestroy()
+    {
+        inputHandler.OnShoot -= HandleShoot;
+    }
+
+    private void HandleShoot()
+    {
+        Debug.Log("Player shot!");
+        // Add shooting logic here
     }
 
     /// <summary>
@@ -80,6 +95,12 @@ public class PlayerControllerRB : MonoBehaviour
     {
         // Ground check
         grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
+
+        // Check if standing on trampoline
+        if (Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsTrampoline))
+        {
+            ApplyTrampolineForce();
+        }
 
         MyInput();
         SpeedControl();
@@ -408,5 +429,11 @@ public class PlayerControllerRB : MonoBehaviour
             + Mathf.Sqrt(2 * (displacementY - trajectoryHeight) / gravity));
 
         return velocityXZ + velocityY;
+    }
+
+    private void ApplyTrampolineForce()
+    {
+        rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z); // Reset y velocity
+        rb.AddForce(Vector3.up * trampolineJumpPower, ForceMode.Impulse);
     }
 }

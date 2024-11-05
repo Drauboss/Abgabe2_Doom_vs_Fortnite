@@ -13,7 +13,7 @@ public class PlayerInputHandlerRB : MonoBehaviour
     public bool IsGrapplingPressed { get; set; }
     public bool IsSwingingPressed { get; set; }
     public bool IsSwingingReleased { get; set; }
-
+    public event Action OnShoot;
 
     public void HandleMoveInput(InputAction.CallbackContext context)
     {
@@ -93,6 +93,14 @@ public class PlayerInputHandlerRB : MonoBehaviour
         else if (context.canceled)
         {
             IsSwingingReleased = true;
+        }
+    }
+
+    public void HandleShootInput(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            OnShoot?.Invoke();
         }
     }
 }

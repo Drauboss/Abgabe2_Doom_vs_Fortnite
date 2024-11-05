@@ -125,9 +125,6 @@ public class ClimbingRB : MonoBehaviour
     private void ClimbMovement()
     {
 
-        // Reduce horizontal movement speed by a factor (e.g., 0.8 for reduced speed)
-        float speedReductionFactor = 0.8f;
-
         // Apply the speed reduction factor to the x and z components of moveVelocity
         rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
 
