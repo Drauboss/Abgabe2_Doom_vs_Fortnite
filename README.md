@@ -1,7 +1,11 @@
 # Abgabe2_Doom_vs_Fortnite
 
-## Gameplay Recoording
+## Gameplay Recording
 [![Doom](https://img.youtube.com/vi/AI96NwbTwk4/0.jpg)](https://www.youtube.com/watch?v=AI96NwbTwk4)
+
+## Installation
+To install and run the Game locally, follow these steps: <br>
+Download the [Release](https://github.com/Drauboss/Abgabe2_Doom_vs_Fortnite/archive/refs/tags/v1.zip), extract the files and run the Abgabe2_Doom_vs_Fortnite.exe file.
 
 ## Edited Task:
 - Game Mechanics: High Mobility
@@ -37,3 +41,6 @@ The player has health and loses it through zombie attacks. The player also has a
 - **Green floating boxes:** For practicing swinging.
 - **Blue towers:** For trying out climbing.
 - **Ground floor of the building:** A shooting range to practice shooting. Hits are displayed on the dummies.
+
+## License
+This project is licensed under the MIT License. See the LICENSE file for details.
